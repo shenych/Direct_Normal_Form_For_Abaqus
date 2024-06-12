@@ -1,0 +1,118 @@
+##################################################################
+##################################################################
+##################################################################
+##################################################################
+##################################################################
+##################################################################
+##################################################################
+##################################################################
+##################################################################
+##################################################################
+##################################################################
+##################################################################
+##################################################################
+##################################################################
+##################################################################
+##################################################################
+##################################################################
+##################################################################
+##################################################################
+##################################################################
+##################################################################
+##################################################################
+##################################################################
+##################################################################
+
+
+
+
+
+from abaqus import *
+from abaqusConstants import *
+import time
+
+
+
+session.Viewport(name='Viewport: 1', origin=(0.0, 0.0), width=170.88020324707, 
+    height=134.375)
+session.viewports['Viewport: 1'].makeCurrent()
+session.viewports['Viewport: 1'].maximize()
+from caeModules import *
+from driverUtils import executeOnCaeStartup
+executeOnCaeStartup()
+session.viewports['Viewport: 1'].partDisplay.geometryOptions.setValues(
+    referenceRepresentation=ON)
+a = mdb.models['Model-1'].rootAssembly
+session.viewports['Viewport: 1'].setValues(displayedObject=a)
+
+
+
+
+Inputpath=Current_path+"inp_files/"
+Outputpath=Current_path+"rpt_files/"
+Odbpath=Current_path
+
+
+
+text='("U", NODAL, ('
+
+for i in range(1,dof_RF+1):
+    text=text+'(COMPONENT, "U'+str(i)+'"),'
+
+text=text+')),'
+
+if dof_RM>0:
+    text=text+'("UR", NODAL, ('
+    for j in range(1,dof_RM+1):
+        text=text+'(COMPONENT, "UR'+str(j)+'"),'
+    text=text+')),'
+
+
+
+
+
+Inputname='Compute_PHI' 
+mdb.ModelFromInputFile(name=Inputname, 
+                               inputFileName=Inputpath+Inputname+'.inp')
+
+session.viewports['Viewport: 1'].assemblyDisplay.setValues(
+            optimizationTasks=OFF, geometricRestrictions=OFF, stopConditions=OFF)
+a = mdb.models[Inputname].rootAssembly
+session.viewports['Viewport: 1'].setValues(displayedObject=a)
+mdb.Job(name=Inputname, model=Inputname, description='', 
+                type=ANALYSIS, atTime=None, waitMinutes=0, waitHours=0, queue=None, 
+                memory=90, memoryUnits=PERCENTAGE, getMemoryFromAnalysis=True, 
+                explicitPrecision=SINGLE, nodalOutputPrecision=SINGLE, echoPrint=OFF, 
+                modelPrint=OFF, contactPrint=OFF, historyPrint=OFF, userSubroutine='', 
+                scratch='', resultsFormat=ODB, numThreadsPerMpiProcess=1, 
+                multiprocessingMode=MPI, numCpus=4, numDomains=4,numGPUs=0)
+mdb.jobs[Inputname].submit(consistencyChecking=OFF)
+
+
+
+
+time.sleep(20)
+
+
+
+
+
+
+
+for i in range(Nmodes):
+    o3 = session.openOdb(name=Odbpath+Inputname+'.odb')
+    session.viewports['Viewport: 1'].setValues(displayedObject=o3)
+    session.viewports['Viewport: 1'].odbDisplay.display.setValues(plotState=(
+    CONTOURS_ON_DEF, ))
+
+    session.viewports['Viewport: 1'].odbDisplay.setFrame(step=0, frame=master_modes[i])
+    odb = session.odbs[Odbpath+Inputname+'.odb']
+    session.fieldReportOptions.setValues(printTotal=OFF, printMinMax=OFF)
+    session.writeFieldReport(
+            fileName=Outputpath+Inputname+str(i+1)+'.rpt', 
+            append=ON, sortItem='Node Label', odb=odb, step=0, frame=master_modes[i], 
+            outputPosition=NODAL, variable=(eval(text) ), stepFrame=SPECIFY)
+
+
+
+        
